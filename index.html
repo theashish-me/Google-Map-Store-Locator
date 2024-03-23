@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link href="./style.min.css" rel="stylesheet" />
+  </head>
+  <body>
+    <section class="w-full px-4 mx-auto sm:px-6 relative z-20 mb-10 lg:mb-20">
+      <div id="store-locator" class="flex rounded-2xl overflow-hidden">
+        <div id="storelist" class="w-1/3 bg-white">
+          <div class="search-container px-12 pt-10">
+            <input class="appearance-none bg-transparent font-bold border border-quaternary rounded-lg py-2 px-4 w-full" pattern=".*" type="text" id="city-active" placeholder="Choose a city" />
+            <ul id="cities-list" class="px-4 py-2 mt-2 overflow-y-auto bg-white shadow-md max-h-48" style="display: none"></ul>
+            <div id="total-stores" class="w-full text-xs italic mt-3 text-black"></div>
+          </div>
+          <div class="block w-full">
+            <ul id="store-list" class="flex flex-col border-t border-b overflow-x-hidden overflow-y-scroll mt-8 h-[550px]"></ul>
+          </div>
+        </div>
+        <div id="map" class="flex-[1]"></div>
+      </div>
+    </section>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDhLVEE55--gx1O3HlFguaiyjr6keJKyXA&callback=initMap" async defer></script>
+
+    <script>
+      let map;
+      let markers = [];
+      let stores = [
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Surat", country: "India", lat: 33.7749, lng: -88.3194 },
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Amroli", country: "India", lat: 33.7749, lng: -99.3194 },
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Indore", country: "India", lat: 33.7749, lng: -95.3194 },
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Bharuch", country: "India", lat: 33.7749, lng: -82.3194 },
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Amreli", country: "India", lat: 33.7749, lng: -54.3194 },
+        { name: "Ashish 1", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Bhavnagar", country: "India", lat: 33.7749, lng: -48.3194 },
+        { name: "Store 2", address: "456 Oak St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Bardoli", country: "USA", lat: 37.7898, lng: -122.4331 },
+        { name: "Store 3", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Varaccha", country: "India", lat: 21.152676, lng: 72.861907 },
+        { name: "Store 4", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Rajkot", country: "India", lat: 22.152676, lng: 72.861907 },
+        { name: "Store 5", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Jamnagar", country: "India", lat: 23.152676, lng: 72.861907 },
+        { name: "Store 6", address: "123 Main St, City, Country", pincode: "394210", phone: "+91 12345 67890", city: "Rajkot", country: "India", lat: 24.152676, lng: 72.861907 },
+      ];
+
+      function initMap() {
+        map = new google.maps.Map(document.getElementById("map"), {
+          center: {
+            lat: 37.7749,
+            lng: -122.4194,
+          },
+          zoom: 14,
+          mapTypeControl: false,
+        });
+        // Show all stores on the map
+        addMarkers();
+        // Render the store list with all stores
+        renderStoreList(stores);
+
+        // Calculate bounds for all markers
+        const bounds = new google.maps.LatLngBounds();
+        markers.forEach((marker) => bounds.extend(marker.getPosition()));
+
+        // Fit the map to the calculated bounds
+        map.fitBounds(bounds);
+      }
+
+      function addMarkers() {
+        // Clear existing markers
+        markers.forEach((marker) => marker.setMap(null));
+        markers = [];
+
+        // Add markers for each store
+        stores.forEach((store) => {
+          const marker = new google.maps.Marker({
+            position: {
+              lat: store.lat,
+              lng: store.lng,
+            },
+            map: map,
+            title: store.name,
+          });
+          markers.push(marker);
+
+          // Add click listener to show store details
+          marker.addListener("click", () => {
+            showStoreDetails(store, marker);
+          });
+        });
+      }
+
+      let currentInfowindow = null; // Global variable to store the currently open infowindow
+      let activeTooltip = null;
+
+      function showStoreDetails(store, marker) {
+        // Close the current infowindow if it exists
+        if (currentInfowindow) {
+          currentInfowindow.close();
+        }
+
+        // Center the map on the clicked marker
+        map.setCenter(marker.getPosition());
+        map.setZoom(14);
+
+        // Create a Google Maps link with the latitude and longitude
+        const googleMapsLink = `https://www.google.com/maps/search/?api=1&query=${store.lat},${store.lng}`;
+
+        // Display store details in an info window
+        const infowindow = new google.maps.InfoWindow({
+          content: `
+          <div>
+            <strong>${store.name}</strong><br>
+            Address: ${store.address}<br>
+            Pincode: ${store.pincode}<br>
+            <b>T.</b>: <a href="tel:${store.phone}" target="_blank" style="color:#0078a8;">${store.phone}</a><br>
+            City: ${store.city}<br>
+            Country: ${store.country}<br>
+            <a class="font-bold" href="${googleMapsLink}" target="_blank">Open in Google Maps</a>
+          </div>
+        `,
+        });
+        infowindow.open(map, marker);
+        // Assign the opened infowindow to activeTooltip
+        activeTooltip = infowindow;
+        currentInfowindow = infowindow; // Update the current infowindow
+      }
+
+      function renderStoreList(filteredStores) {
+        const storeList = document.getElementById("store-list");
+        storeList.innerHTML = "";
+        filteredStores.forEach((store) => {
+          const li = document.createElement("li");
+
+          // Create strong element for store name
+          const store_name = document.createElement("strong");
+          store_name.textContent = store.name;
+          li.appendChild(store_name);
+
+          // Append the address
+          li.innerHTML += `${store.address}`;
+
+          // Create span element for city and country
+          const store_cc = document.createElement("span");
+          store_cc.textContent = `${store.city} - ${store.country}`;
+          li.appendChild(store_cc);
+
+          // Create span element for phone number
+          const store_phone = document.createElement("span");
+          const phoneLabel = document.createElement("b");
+          phoneLabel.textContent = "T. ";
+          store_phone.appendChild(phoneLabel);
+          store_phone.appendChild(document.createTextNode(store.phone)); // Append phone number as text node
+          li.appendChild(store_phone);
+
+          // Add the extra classes to li
+          li.classList.add("text-base", "relative", "flex", "flex-col", "px-12", "py-6", "border-b", "cursor-pointer", "transition", "duration-200");
+
+          // Add click listener to show store details
+          li.addEventListener("click", () => {
+            const clickedMarker = markers.find((marker) => marker.getTitle() === store.name);
+            if (clickedMarker) {
+              showStoreDetails(store, clickedMarker);
+            }
+          });
+
+          storeList.appendChild(li);
+        });
+
+        // Display total number of stores
+        document.getElementById("total-stores").textContent = `${filteredStores.length} shops found`;
+      }
+
+      function updateMap(filteredStores) {
+        const bounds = new google.maps.LatLngBounds();
+        filteredStores.forEach((store) => {
+          const position = new google.maps.LatLng(store.lat, store.lng);
+          bounds.extend(position);
+        });
+        map.fitBounds(bounds);
+      }
+
+      document.addEventListener("DOMContentLoaded", () => {
+        const cityActiveInput = document.getElementById("city-active");
+        const citiesList = document.getElementById("cities-list");
+        const cityItems = citiesList.getElementsByTagName("li");
+        let blurTimeout; // Variable to store the timeout ID
+
+        // Hide cities list by default
+        citiesList.style.display = "none";
+
+        // Show cities list when input is focused
+        cityActiveInput.addEventListener("focus", () => {
+          citiesList.style.display = "block";
+        });
+
+        // Hide cities list when focus is removed from input
+        cityActiveInput.addEventListener("blur", () => {
+          // Add a delay before hiding the list
+          blurTimeout = setTimeout(() => {
+            citiesList.style.display = "none";
+          }, 200);
+        });
+
+        // Cancel the blur timeout if a city item is clicked
+        citiesList.addEventListener("mousedown", () => {
+          clearTimeout(blurTimeout);
+        });
+
+        // Populate city options dynamically
+        const uniqueCities = [...new Set(stores.map((store) => store.city))];
+        uniqueCities.forEach((city) => {
+          const listItem = document.createElement("li");
+          listItem.classList.add("cursor-pointer");
+          listItem.textContent = city;
+          listItem.setAttribute("value", city);
+          citiesList.appendChild(listItem);
+        });
+
+        // Event listener for clicks on city list items
+        citiesList.addEventListener("click", (event) => {
+          if (event.target.tagName === "LI") {
+            const selectedCity = event.target.getAttribute("value");
+            cityActiveInput.value = selectedCity;
+            filterStores(selectedCity);
+            citiesList.style.display = "none"; // Hide cities list after selection
+          }
+        });
+
+        // Event listener for changes in the input field
+        cityActiveInput.addEventListener("input", (event) => {
+          const inputValue = event.target.value.trim().toLowerCase(); // Get the trimmed and lowercased input value
+          if (inputValue === "") {
+            // If input value is empty, reset filter and show all stores and markers
+            renderStoreList(stores);
+            updateMap(stores);
+            filterMarkers(stores); // Show all markers
+
+            // Close the active tooltip if any
+            if (activeTooltip) {
+              activeTooltip.close();
+              activeTooltip = null; // Reset activeTooltip variable
+            }
+
+            // Reset city list visibility
+            Array.from(cityItems).forEach((item) => {
+              item.style.display = "block";
+            });
+
+            return;
+          }
+
+          // Filter city list
+          Array.from(cityItems).forEach((item) => {
+            const cityName = item.textContent.toLowerCase();
+            if (cityName.includes(inputValue)) {
+              item.style.display = "block";
+            } else {
+              item.style.display = "none";
+            }
+          });
+
+          // Filter map markers
+          const filteredStores = stores.filter((store) => store.city.toLowerCase().includes(inputValue));
+          renderStoreList(filteredStores);
+          updateMap(filteredStores);
+          filterMarkers(filteredStores);
+        });
+
+        // Event listener for clicks on store list items
+        const storeList = document.getElementById("store-list");
+        storeList.addEventListener("click", (event) => {
+          const li = event.target.closest("li"); // Get the closest <li> element
+
+          // Check if the clicked element is an <li> element
+          if (li) {
+            // Remove the classes from previously selected store
+            const previouslySelectedStore = storeList.querySelector(".selected-store");
+            if (previouslySelectedStore) {
+              previouslySelectedStore.classList.remove("selected-store", "text-white", "bg-primary");
+              previouslySelectedStore.classList.add("cursor-pointer");
+            }
+
+            // Extract store name from the list item
+            const strongElement = li.querySelector("strong");
+            const storeName = strongElement.textContent.trim();
+
+            // Add classes to the selected store
+            const clickedStore = stores.find((store) => store.name === storeName);
+            const clickedMarker = markers.find((marker) => marker.getTitle() === storeName);
+            if (clickedStore && clickedMarker) {
+              showStoreDetails(clickedStore, clickedMarker);
+              li.classList.add("selected-store", "text-white", "bg-primary");
+            }
+          }
+        });
+      });
+
+      // Function to filter stores based on selected city
+      function filterStores(selectedCity) {
+        const filteredStores = stores.filter((store) => store.city === selectedCity);
+        renderStoreList(filteredStores);
+        updateMap(filteredStores);
+        filterMarkers(filteredStores);
+      }
+
+      function filterMarkers(filteredStores) {
+        markers.forEach((marker) => {
+          const storeName = marker.getTitle();
+          const relatedStore = filteredStores.find((store) => store.name === storeName);
+          if (relatedStore) {
+            marker.setVisible(true);
+          } else {
+            marker.setVisible(false);
+          }
+        });
+      }
+
+      // Function to show all stores
+      function showAllStores() {
+        renderStoreList(stores);
+        updateMap(stores);
+      }
+    </script>
+  </body>
+</html>
